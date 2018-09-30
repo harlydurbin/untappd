@@ -1,0 +1,97 @@
+---
+title: "Untappd"
+author: "Harly Durbin"
+date: "9/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(googlesheets)
+library(tidyverse)
+library(lubridate)
+library(cowplot)
+library(viridis)
+library(nord)
+```
+
+* How to set up IFTTT Untappd app
+* [googlesheets package tutorial](https://cran.r-project.org/web/packages/googlesheets/vignettes/basic-usage.html#read-all-the-data-in-one-worksheet)
+
+* [Helpful regex tester](https://spannbaueradam.shinyapps.io/r_regex_tester/)
+
+
+```{r}
+googlesheets::gs_ls()
+```
+
+```{r}
+#Read in google sheet by URL
+checkins <- gs_url("https://docs.google.com/spreadsheets/d/1hKhVEZz2CE1o42z25WO7CLb9XkrxZaY2P35zjwgCmhs/edit?usp=sharing") %>% 
+  #Assign column names
+  gs_read(col_names = c("check_date", "description", "link", "comment" ), trim_ws = TRUE) %>% 
+  #Standardize date
+  mutate(check_date = lubridate::mdy_hm(check_date)) %>% 
+  #Edit checkin description to include only beer, brewery, location
+  mutate(description = gsub("Harly D. is drinking [[:alpha:]]{1,3} ", "", description)) %>% 
+  #Create a beer column by pulling out everything before "by" in description
+  mutate(beer = str_extract(description, ".+(?= by)"), 
+         #create a brewery column: if " at " is in description, extract everything between "by " and " at", else extract everything after "by "
+         #case_when here instead?
+         brewery = if_else(str_detect(description, " at "),
+                           str_extract(description, "(?<=by ).+(?= at)"),
+                           str_extract(description, "(?<=by ).+")),
+         brewery = trimws(brewery, which = c("both") ),
+         #create location column: extract everthing after "at "
+         location = str_extract(description, "(?<=at ).+"))
+  
+  
+```
+
+
+```{r}
+
+checkins %>% 
+  group_by(brewery) %>% 
+  tally() %>% 
+  arrange(desc(n))
+
+```
+
+* Day of the month trends?
+    + Beer fest was on the 25th duh
+* Could facet by season?
+```{r}
+  
+
+checkins %>% 
+  mutate(month = month(check_date),
+         yr = year(check_date)) %>% 
+  group_by(month) %>% 
+  add_count(day(check_date)) %>% 
+  rename(day_of_month = `day(check_date)`,
+         day_of_month_n = n) %>% 
+  ggplot(aes(x = day_of_month, 
+             y = day_of_month_n, 
+             color = as.factor(month))) + 
+  geom_line() +
+  scale_color_nord("victory_bonds") +
+  facet_wrap(~yr)
+
+  
+
+```
+
+* Time of day??
+```{r}
+
+checkins %>% 
+  mutate(minutes = as.numeric(format(ymd_hms(date), "%M"))/60,
+         hour = as.numeric(format(ymd_hms(date), "%H")),
+         decimal_time = hour + minutes) %>% 
+  #filter(decimal_time > 13) %>% 
+  ggplot(aes(x = decimal_time)) +
+  geom_histogram(bins = 24)
+  
+      
+```
