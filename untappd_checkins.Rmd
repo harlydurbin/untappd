@@ -61,6 +61,7 @@ checkins %>%
 * Day of the month trends?
     + Beer fest was on the 25th duh
 * Could facet by season?
+
 ```{r}
   
 
@@ -86,12 +87,11 @@ checkins %>%
 ```{r}
 
 checkins %>% 
-  mutate(minutes = as.numeric(format(ymd_hms(date), "%M"))/60,
-         hour = as.numeric(format(ymd_hms(date), "%H")),
+  mutate(minutes = as.numeric(format(ymd_hms(check_date), "%M"))/60,
+         hour = as.numeric(format(ymd_hms(check_date), "%H")),
          decimal_time = hour + minutes) %>% 
   #filter(decimal_time > 13) %>% 
   ggplot(aes(x = decimal_time)) +
   geom_histogram(bins = 24)
   
-      
 ```
